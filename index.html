@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CFB Elo Predictions</title>
+<style>
+  :root{
+    --field-green:#1b4d3e;
+    --field-green-dark:#0f2e24;
+    --hash-white:#f5f2ea;
+    --chalk:#e8e4d8;
+    --pigskin:#7a4a2b;
+    --pigskin-lace:#f0e6d8;
+    --power-gold:#c9a24b;
+    --g5-slate:#5c6b73;
+    --ink:#12201b;
+    --danger:#b5482f;
+    --win:#2f6b4f;
+    --card-bg:#ffffff;
+    --shadow: 0 2px 10px rgba(15,46,36,0.12);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Georgia', 'Times New Roman', serif;
+    background:
+      repeating-linear-gradient(0deg, var(--field-green) 0px, var(--field-green) 78px, var(--field-green-dark) 78px, var(--field-green-dark) 80px);
+    color:var(--ink);
+    min-height:100vh;
+  }
+  header{
+    background: linear-gradient(180deg, var(--field-green-dark), var(--field-green));
+    padding: 28px 20px 22px;
+    text-align:center;
+    border-bottom: 4px solid var(--power-gold);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  }
+  header h1{
+    color: var(--hash-white);
+    font-size: 2.1rem;
+    letter-spacing: 2px;
+    margin: 0;
+    text-transform: uppercase;
+    font-family: 'Arial Black', Arial, sans-serif;
+    text-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+  }
+  header .sub{
+    color: var(--power-gold);
+    font-family: Arial, sans-serif;
+    font-size: 0.85rem;
+    letter-spacing: 3px;
+    margin-top: 6px;
+    text-transform: uppercase;
+  }
+  .controls{
+    max-width: 1100px;
+    margin: 18px auto 0;
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    justify-content:center;
+    padding: 0 16px;
+  }
+  .week-tab{
+    background: var(--pigskin-lace);
+    border: 2px solid var(--pigskin);
+    color: var(--pigskin);
+    font-family: Arial, sans-serif;
+    font-weight:700;
+    padding: 8px 18px;
+    border-radius: 20px;
+    cursor:pointer;
+    font-size:0.85rem;
+    letter-spacing:1px;
+    transition: all .15s ease;
+  }
+  .week-tab.active, .week-tab:hover{
+    background: var(--pigskin);
+    color: var(--pigskin-lace);
+  }
+  .market-tabs{
+    max-width:1100px;
+    margin: 14px auto 0;
+    display:flex;
+    gap:6px;
+    justify-content:center;
+    padding:0 16px;
+    flex-wrap:wrap;
+  }
+  .market-tab{
+    background: rgba(245,242,234,0.12);
+    border:1px solid rgba(245,242,234,0.4);
+    color: var(--hash-white);
+    font-family: Arial, sans-serif;
+    font-size:0.78rem;
+    letter-spacing:0.5px;
+    padding:6px 14px;
+    border-radius:14px;
+    cursor:pointer;
+  }
+  .market-tab.active{
+    background: var(--power-gold);
+    border-color: var(--power-gold);
+    color: var(--field-green-dark);
+    font-weight:700;
+  }
+  main{
+    max-width: 1100px;
+    margin: 24px auto 60px;
+    padding: 0 16px;
+  }
+  .status-msg{
+    text-align:center;
+    color: var(--hash-white);
+    font-family: Arial, sans-serif;
+    padding: 40px 0;
+    font-size:1rem;
+  }
+  .game-card{
+    background: var(--card-bg);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    margin-bottom: 18px;
+    overflow: hidden;
+    border-left: 6px solid var(--power-gold);
+  }
+  .game-card.conf-mismatch{ border-left-color: var(--danger); }
+  .game-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding: 12px 18px;
+    background: var(--chalk);
+    font-family: Arial, sans-serif;
+    font-size: 0.78rem;
+    color: #555;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .game-body{
+    display:grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 14px;
+    padding: 18px;
+    align-items:center;
+  }
+  .team-block{ text-align:center; }
+  .team-block.home{ text-align:center; }
+  .team-name{
+    font-size: 1.15rem;
+    font-weight:bold;
+    margin-bottom:2px;
+  }
+  .team-conf{
+    font-family: Arial, sans-serif;
+    font-size: 0.7rem;
+    color: var(--g5-slate);
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+  }
+  .team-winpct{
+    font-family: Arial, sans-serif;
+    font-size: 1.6rem;
+    font-weight:800;
+    margin-top:8px;
+    color: var(--field-green);
+  }
+  .team-record{
+    font-family: Arial, sans-serif;
+    font-size: 0.75rem;
+    color:#888;
+    margin-top: 2px;
+  }
+  .vs-block{
+    text-align:center;
+    font-family: Arial, sans-serif;
+  }
+  .vs-block .at{
+    color: var(--g5-slate);
+    font-size:0.8rem;
+    font-style:italic;
+  }
+  .vs-block .conf-label{
+    font-size: 0.65rem;
+    background: var(--danger);
+    color:white;
+    padding:2px 6px;
+    border-radius:8px;
+    margin-top:4px;
+    display:inline-block;
+  }
+  .market-panel{
+    border-top: 1px dashed #ddd;
+    padding: 14px 18px;
+    font-family: Arial, sans-serif;
+  }
+  .market-grid{
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    text-align:center;
+  }
+  .market-item .label{
+    font-size:0.65rem;
+    color: var(--g5-slate);
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+  }
+  .market-item .value{
+    font-size:1.05rem;
+    font-weight:700;
+    color: var(--ink);
+    margin-top:2px;
+  }
+  .confidence-badge{
+    display:inline-block;
+    font-size:0.72rem;
+    padding:3px 10px;
+    border-radius:12px;
+    font-weight:700;
+    font-family:Arial,sans-serif;
+  }
+  .conf-strong{ background:#dff0e4; color: var(--win); }
+  .conf-moderate{ background:#fbf0d9; color:#8a6100; }
+  .conf-tossup{ background:#fbe1db; color: var(--danger); }
+  .expand-toggle{
+    text-align:center;
+    padding: 8px;
+    font-family: Arial, sans-serif;
+    font-size: 0.75rem;
+    color: var(--field-green);
+    cursor:pointer;
+    background: #fafafa;
+    border-top:1px solid #eee;
+  }
+  .detail-panel{
+    display:none;
+    padding: 14px 18px;
+    background: #fbfaf7;
+    border-top: 1px solid #eee;
+    font-family: Arial, sans-serif;
+    font-size: 0.85rem;
+  }
+  .detail-panel.open{ display:block; }
+  .detail-row{ display:flex; justify-content:space-between; padding: 4px 0; border-bottom: 1px dotted #e5e5e5; }
+  footer{
+    text-align:center;
+    color: var(--chalk);
+    font-family: Arial, sans-serif;
+    font-size: 0.7rem;
+    padding: 20px;
+    opacity: 0.7;
+  }
+  @media (max-width: 640px){
+    .game-body{ grid-template-columns: 1fr; text-align:center; }
+    .market-grid{ grid-template-columns: repeat(2,1fr); }
+    header h1{ font-size:1.4rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🏈 CFB Elo Predictions</h1>
+  <div class="sub">FBS · Full Game &amp; 1st Half · Spreads · Totals</div>
+</header>
+
+<div class="controls" id="weekTabs"></div>
+<div class="market-tabs" id="marketTabs">
+  <div class="market-tab active" data-market="fg">Full Game</div>
+  <div class="market-tab" data-market="1h">1st Half</div>
+</div>
+
+<main id="main">
+  <div class="status-msg">Loading matchups…</div>
+</main>
+
+<footer>
+  CFB Elo Model · Data refreshes from Google Sheets · Not affiliated with the NCAA
+</footer>
+
+<script>
+/* =========================================================================
+   CONFIG — fill in after running setupSheets() in the Google Sheet.
+   Each Google Sheet tab has a stable GID once created; find it in the tab's
+   URL bar (…#gid=123456789) or via File > Share > Publish, same pattern
+   used for the MLB/NFL/WNBA/NHL models.
+   ========================================================================= */
+const SHEET_ID = "1cnmNvbT-DSqCReJnWACgGli4BIZFdDrsdyUIydFfFwQ";
+const GIDS = {
+  thisWeek: "PASTE_THIS_WEEK_GID_HERE",
+  eloRatings: "PASTE_ELO_RATINGS_GID_HERE",
+  conferences: "PASTE_CONFERENCES_GID_HERE",
+  teams: "PASTE_TEAMS_GID_HERE",
+};
+
+function csvUrl(gid){
+  return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
+}
+
+// Minimal CSV parser (handles quoted commas)
+function parseCSV(text){
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for (let i=0;i<text.length;i++){
+    const c = text[i];
+    if (inQuotes){
+      if (c === '"'){
+        if (text[i+1] === '"'){ field += '"'; i++; } else { inQuotes = false; }
+      } else field += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ','){ row.push(field); field=''; }
+      else if (c === '\n'){ row.push(field); rows.push(row); row=[]; field=''; }
+      else if (c === '\r'){ /* skip */ }
+      else field += c;
+    }
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+let currentMarket = 'fg';
+let allGames = [];
+let weeks = [];
+
+async function loadData(){
+  try{
+    const resp = await fetch(csvUrl(GIDS.thisWeek));
+    const text = await resp.text();
+    const rows = parseCSV(text).filter(r => r.length > 3 && r[3]);
+    const header = rows[0];
+    const idx = name => header.indexOf(name);
+
+    allGames = rows.slice(1).map(r => ({
+      week: r[idx("Week")],
+      date: r[idx("Game Date")],
+      away: r[idx("Away")],
+      home: r[idx("Home")],
+      awayConf: r[idx("Away Conf")],
+      homeConf: r[idx("Home Conf")],
+      awayElo: r[idx("Away Elo")],
+      homeElo: r[idx("Home Elo")],
+      awayWinPct: parseFloat(r[idx("Away Win%")]) || 0,
+      homeWinPct: parseFloat(r[idx("Home Win%")]) || 0,
+      predictedWinner: r[idx("Predicted Winner")],
+      confidence: r[idx("Confidence")],
+      spreadHome: r[idx("Spread (Home)")],
+      total: r[idx("O/U Total")],
+      awayTeamTotal: r[idx("Away Team Total")],
+      homeTeamTotal: r[idx("Home Team Total")],
+      spread1H: r[idx("1H Spread (Home)")],
+      total1H: r[idx("1H O/U Total")],
+      awayTeamTotal1H: r[idx("1H Away Team Total")],
+      homeTeamTotal1H: r[idx("1H Home Team Total")],
+      neutral: r[idx("Neutral Site?")],
+      awayRecord: r[idx("Away Record")],
+      homeRecord: r[idx("Home Record")],
+    }));
+
+    weeks = [...new Set(allGames.map(g => g.week))].filter(Boolean);
+    renderWeekTabs();
+    renderGames(weeks[0]);
+  } catch(e){
+    document.getElementById('main').innerHTML =
+      `<div class="status-msg">Couldn't load predictions. Make sure the GIDs in index.html are filled in after running setupSheets(). (${e})</div>`;
+  }
+}
+
+function renderWeekTabs(){
+  const el = document.getElementById('weekTabs');
+  el.innerHTML = weeks.map((w,i) =>
+    `<div class="week-tab ${i===0?'active':''}" data-week="${w}">Week ${w}</div>`
+  ).join('');
+  el.querySelectorAll('.week-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      el.querySelectorAll('.week-tab').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      renderGames(tab.dataset.week);
+    });
+  });
+}
+
+function confBadge(g){
+  if (g.awayConf && g.homeConf && g.awayConf !== g.homeConf){
+    return `<div class="conf-label">Cross-Conf</div>`;
+  }
+  return '';
+}
+
+function confClass(conf){
+  const power = ["SEC","Big Ten","Big 12","ACC"];
+  return power.includes(conf) ? "" : "conf-g5";
+}
+
+function confidenceClass(c){
+  if (!c) return '';
+  if (c.includes('Strong')) return 'conf-strong';
+  if (c.includes('Moderate')) return 'conf-moderate';
+  return 'conf-tossup';
+}
+
+function renderGames(week){
+  const games = allGames.filter(g => g.week === week);
+  const main = document.getElementById('main');
+  if (!games.length){
+    main.innerHTML = `<div class="status-msg">No games found for Week ${week}.</div>`;
+    return;
+  }
+  main.innerHTML = games.map((g, i) => {
+    const mismatch = g.awayConf && g.homeConf && g.awayConf !== g.homeConf;
+    return `
+    <div class="game-card ${mismatch ? 'conf-mismatch':''}">
+      <div class="game-header">
+        <span>${g.date ? new Date(g.date).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : ''}</span>
+        <span class="confidence-badge ${confidenceClass(g.confidence)}">${g.confidence || ''}</span>
+      </div>
+      <div class="game-body">
+        <div class="team-block away">
+          <div class="team-name">${g.away}</div>
+          <div class="team-conf">${g.awayConf || ''}</div>
+          <div class="team-winpct">${(g.awayWinPct*100).toFixed(1)}%</div>
+          <div class="team-record">${g.awayRecord || ''}</div>
+        </div>
+        <div class="vs-block">
+          <div class="at">${g.neutral === 'Yes' ? 'NEUTRAL' : '@'}</div>
+          ${confBadge(g)}
+        </div>
+        <div class="team-block home">
+          <div class="team-name">${g.home}</div>
+          <div class="team-conf">${g.homeConf || ''}</div>
+          <div class="team-winpct">${(g.homeWinPct*100).toFixed(1)}%</div>
+          <div class="team-record">${g.homeRecord || ''}</div>
+        </div>
+      </div>
+      <div class="market-panel" data-idx="${i}">
+        ${renderMarket(g, currentMarket)}
+      </div>
+      <div class="expand-toggle" onclick="toggleDetail(${i})">Show team details ▾</div>
+      <div class="detail-panel" id="detail-${i}">
+        <div class="detail-row"><span>${g.away} Elo</span><span>${g.awayElo}</span></div>
+        <div class="detail-row"><span>${g.home} Elo</span><span>${g.homeElo}</span></div>
+        <div class="detail-row"><span>Predicted Winner</span><span>${g.predictedWinner}</span></div>
+        <div class="detail-row"><span>Neutral Site</span><span>${g.neutral}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderMarket(g, market){
+  if (market === 'fg'){
+    return `
+      <div class="market-grid">
+        <div class="market-item"><div class="label">Spread (Home)</div><div class="value">${fmtSpread(g.spreadHome)}</div></div>
+        <div class="market-item"><div class="label">Game Total</div><div class="value">${g.total}</div></div>
+        <div class="market-item"><div class="label">${abbrev(g.away)} Team Total</div><div class="value">${g.awayTeamTotal}</div></div>
+        <div class="market-item"><div class="label">${abbrev(g.home)} Team Total</div><div class="value">${g.homeTeamTotal}</div></div>
+      </div>`;
+  } else {
+    return `
+      <div class="market-grid">
+        <div class="market-item"><div class="label">1H Spread (Home)</div><div class="value">${fmtSpread(g.spread1H)}</div></div>
+        <div class="market-item"><div class="label">1H Total</div><div class="value">${g.total1H}</div></div>
+        <div class="market-item"><div class="label">1H ${abbrev(g.away)} Total</div><div class="value">${g.awayTeamTotal1H}</div></div>
+        <div class="market-item"><div class="label">1H ${abbrev(g.home)} Total</div><div class="value">${g.homeTeamTotal1H}</div></div>
+      </div>`;
+  }
+}
+
+function abbrev(name){
+  if (!name) return '';
+  const parts = name.split(' ');
+  return parts.length > 1 ? parts[parts.length-1].slice(0,4).toUpperCase() : name.slice(0,4).toUpperCase();
+}
+
+function fmtSpread(s){
+  const n = parseFloat(s);
+  if (isNaN(n)) return s;
+  return n > 0 ? `+${n}` : `${n}`;
+}
+
+function toggleDetail(i){
+  document.getElementById(`detail-${i}`).classList.toggle('open');
+}
+
+document.querySelectorAll('.market-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.market-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    currentMarket = tab.dataset.market;
+    document.querySelectorAll('.market-panel').forEach(panel => {
+      const idx = panel.dataset.idx;
+      const week = document.querySelector('.week-tab.active').dataset.week;
+      const games = allGames.filter(g => g.week === week);
+      panel.innerHTML = renderMarket(games[idx], currentMarket);
+    });
+  });
+});
+
+loadData();
+</script>
+</body>
+</html>
