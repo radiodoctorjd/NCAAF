@@ -75,6 +75,49 @@
     letter-spacing:1px;
     transition: all .15s ease;
   }
+  .search-bar{
+    max-width: 1100px;
+    margin: 18px auto 0;
+    padding: 0 16px;
+    display:flex;
+    justify-content:center;
+  }
+  .search-bar input{
+    width: 100%;
+    max-width: 480px;
+    padding: 12px 18px;
+    border-radius: 24px;
+    border: 2px solid var(--power-gold);
+    background: rgba(245,242,234,0.95);
+    font-family: Arial, sans-serif;
+    font-size: 0.95rem;
+    color: var(--ink);
+    outline: none;
+  }
+  .search-bar input::placeholder{ color: #888; }
+  .search-bar input:focus{
+    border-color: var(--hash-white);
+    box-shadow: 0 0 0 3px rgba(201,162,75,0.35);
+  }
+  .search-clear{
+    background:none;
+    border:none;
+    color: var(--power-gold);
+    font-family: Arial, sans-serif;
+    font-size: 0.78rem;
+    text-decoration: underline;
+    cursor: pointer;
+    margin-left: 10px;
+    align-self: center;
+  }
+  .search-result-note{
+    text-align:center;
+    color: var(--hash-white);
+    font-family: Arial, sans-serif;
+    font-size: 0.8rem;
+    margin: 10px auto 0;
+    opacity: 0.85;
+  }
   .week-tab.active, .week-tab:hover{
     background: var(--pigskin);
     color: var(--pigskin-lace);
@@ -147,6 +190,17 @@
   }
   .team-block{ text-align:center; }
   .team-block.home{ text-align:center; }
+  .team-logo{
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
+    margin: 0 auto 6px;
+    display: block;
+  }
+  .team-logo.placeholder{
+    background: var(--chalk);
+    border-radius: 50%;
+  }
   .team-name{
     font-size: 1.15rem;
     font-weight:bold;
@@ -266,6 +320,11 @@
   <div class="sub">FBS · Full Game &amp; 1st Half · Spreads · Totals</div>
 </header>
 
+<div class="search-bar">
+  <input type="text" id="teamSearch" placeholder="Search a team, e.g. Ohio State, Georgia, Alabama…" autocomplete="off">
+</div>
+<div class="search-result-note" id="searchNote" style="display:none;"></div>
+
 <div class="controls" id="weekTabs"></div>
 <div class="market-tabs" id="marketTabs">
   <div class="market-tab active" data-market="fg">Full Game</div>
@@ -354,9 +413,15 @@ async function loadData(){
       total1H: r[idx("1H O/U Total")],
       awayTeamTotal1H: r[idx("1H Away Team Total")],
       homeTeamTotal1H: r[idx("1H Home Team Total")],
+      awayElo1H: r[idx("Away 1H Elo")],
+      homeElo1H: r[idx("Home 1H Elo")],
+      awayWinPct1H: parseFloat(r[idx("1H Away Win%")]) || 0,
+      homeWinPct1H: parseFloat(r[idx("1H Home Win%")]) || 0,
       neutral: r[idx("Neutral Site?")],
       awayRecord: r[idx("Away Record")],
       homeRecord: r[idx("Home Record")],
+      awayLogo: r[idx("Away Logo URL")],
+      homeLogo: r[idx("Home Logo URL")],
     }));
 
     weeks = [...new Set(allGames.map(g => g.week))].filter(Boolean);
@@ -377,8 +442,46 @@ function renderWeekTabs(){
     tab.addEventListener('click', () => {
       el.querySelectorAll('.week-tab').forEach(t=>t.classList.remove('active'));
       tab.classList.add('active');
+      document.getElementById('teamSearch').value = '';
+      document.getElementById('searchNote').style.display = 'none';
       renderGames(tab.dataset.week);
     });
+  });
+}
+
+// Search filters the currently-loaded week's games by team name/conference —
+// "This Week" only ever holds one week of upcoming games at a time (the
+// sheet is rebuilt fresh each refresh), so this searches everything that's
+// actually on screen rather than a separate multi-week archive.
+function setupSearch(){
+  const input = document.getElementById('teamSearch');
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    const note = document.getElementById('searchNote');
+    const activeWeekTab = document.querySelector('.week-tab.active');
+    const week = activeWeekTab ? activeWeekTab.dataset.week : weeks[0];
+
+    if (!q){
+      note.style.display = 'none';
+      renderGames(week);
+      return;
+    }
+
+    const matches = allGames.filter(g =>
+      g.week === week && (
+        (g.away && g.away.toLowerCase().includes(q)) ||
+        (g.home && g.home.toLowerCase().includes(q)) ||
+        (g.awayConf && g.awayConf.toLowerCase().includes(q)) ||
+        (g.homeConf && g.homeConf.toLowerCase().includes(q))
+      )
+    );
+
+    note.style.display = 'block';
+    note.textContent = matches.length
+      ? `${matches.length} matchup${matches.length === 1 ? '' : 's'} found for "${input.value.trim()}"`
+      : `No matchups found for "${input.value.trim()}" this week.`;
+
+    renderGameList(matches);
   });
 }
 
@@ -403,9 +506,18 @@ function confidenceClass(c){
 
 function renderGames(week){
   const games = allGames.filter(g => g.week === week);
+  renderGameList(games, week);
+}
+
+let currentRenderedGames = [];
+
+function renderGameList(games, week){
+  currentRenderedGames = games;
   const main = document.getElementById('main');
   if (!games.length){
-    main.innerHTML = `<div class="status-msg">No games found for Week ${week}.</div>`;
+    main.innerHTML = week
+      ? `<div class="status-msg">No games found for Week ${week}.</div>`
+      : `<div class="status-msg">No matching games.</div>`;
     return;
   }
   main.innerHTML = games.map((g, i) => {
@@ -418,6 +530,7 @@ function renderGames(week){
       </div>
       <div class="game-body">
         <div class="team-block away">
+          ${teamLogoImg(g.awayLogo, g.away)}
           <div class="team-name">${g.away}</div>
           <div class="team-conf">${g.awayConf || ''}</div>
           <div class="team-winpct">${(g.awayWinPct*100).toFixed(1)}%</div>
@@ -428,6 +541,7 @@ function renderGames(week){
           ${confBadge(g)}
         </div>
         <div class="team-block home">
+          ${teamLogoImg(g.homeLogo, g.home)}
           <div class="team-name">${g.home}</div>
           <div class="team-conf">${g.homeConf || ''}</div>
           <div class="team-winpct">${(g.homeWinPct*100).toFixed(1)}%</div>
@@ -439,9 +553,11 @@ function renderGames(week){
       </div>
       <div class="expand-toggle" onclick="toggleDetail(${i})">Show team details ▾</div>
       <div class="detail-panel" id="detail-${i}">
-        <div class="detail-row"><span>${g.away} Elo</span><span>${g.awayElo}</span></div>
-        <div class="detail-row"><span>${g.home} Elo</span><span>${g.homeElo}</span></div>
-        <div class="detail-row"><span>Predicted Winner</span><span>${g.predictedWinner}</span></div>
+        <div class="detail-row"><span>${g.away} Elo (Full Game)</span><span>${g.awayElo}</span></div>
+        <div class="detail-row"><span>${g.home} Elo (Full Game)</span><span>${g.homeElo}</span></div>
+        <div class="detail-row"><span>${g.away} Elo (1st Half)</span><span>${g.awayElo1H}</span></div>
+        <div class="detail-row"><span>${g.home} Elo (1st Half)</span><span>${g.homeElo1H}</span></div>
+        <div class="detail-row"><span>Predicted Winner (FG)</span><span>${g.predictedWinner}</span></div>
         <div class="detail-row"><span>Neutral Site</span><span>${g.neutral}</span></div>
       </div>
     </div>`;
@@ -474,6 +590,15 @@ function abbrev(name){
   return parts.length > 1 ? parts[parts.length-1].slice(0,4).toUpperCase() : name.slice(0,4).toUpperCase();
 }
 
+function teamLogoImg(url, teamName){
+  if (!url){
+    return `<div class="team-logo placeholder" title="${teamName || ''}"></div>`;
+  }
+  // onerror swaps a broken/expired logo URL for the same neutral placeholder
+  // rather than showing a browser's broken-image icon.
+  return `<img class="team-logo" src="${url}" alt="${teamName || ''} logo" title="${teamName || ''}" onerror="this.outerHTML='<div class=&quot;team-logo placeholder&quot;></div>'">`;
+}
+
 function fmtSpread(s){
   const n = parseFloat(s);
   if (isNaN(n)) return s;
@@ -491,13 +616,12 @@ document.querySelectorAll('.market-tab').forEach(tab => {
     currentMarket = tab.dataset.market;
     document.querySelectorAll('.market-panel').forEach(panel => {
       const idx = panel.dataset.idx;
-      const week = document.querySelector('.week-tab.active').dataset.week;
-      const games = allGames.filter(g => g.week === week);
-      panel.innerHTML = renderMarket(games[idx], currentMarket);
+      panel.innerHTML = renderMarket(currentRenderedGames[idx], currentMarket);
     });
   });
 });
 
+setupSearch();
 loadData();
 </script>
 </body>
