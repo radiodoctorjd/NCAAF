@@ -426,7 +426,11 @@ async function loadData(){
       homeFullName: r[idx("Home Full Name")] || r[idx("Home")],
     }));
 
-    weeks = [...new Set(allGames.map(g => g.week))].filter(Boolean);
+    // Explicit non-empty check rather than .filter(Boolean) — Boolean("0")
+    // is true so week "0" isn't actually at risk here, but relying on
+    // truthiness to mean "not blank" is fragile and easy to break by
+    // accident later, so this is spelled out directly.
+    weeks = [...new Set(allGames.map(g => g.week))].filter(w => w !== undefined && w !== null && w !== "");
     renderWeekTabs();
     renderGames(weeks[0]);
   } catch(e){
