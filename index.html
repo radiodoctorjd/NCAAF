@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CFB Elo Predictions</title>
+<title>CFB Predictions</title>
 <style>
   :root{
     --field-green:#1b4d3e;
@@ -316,7 +316,7 @@
 <body>
 
 <header>
-  <h1>🏈 CFB Elo Predictions</h1>
+  <h1>🏈 CFB Predictions</h1>
   <div class="sub">FBS · Full Game &amp; 1st Half · Spreads · Totals</div>
 </header>
 
@@ -422,6 +422,8 @@ async function loadData(){
       homeRecord: r[idx("Home Record")],
       awayLogo: r[idx("Away Logo URL")],
       homeLogo: r[idx("Home Logo URL")],
+      awayFullName: r[idx("Away Full Name")] || r[idx("Away")],
+      homeFullName: r[idx("Home Full Name")] || r[idx("Home")],
     }));
 
     weeks = [...new Set(allGames.map(g => g.week))].filter(Boolean);
@@ -471,6 +473,8 @@ function setupSearch(){
       g.week === week && (
         (g.away && g.away.toLowerCase().includes(q)) ||
         (g.home && g.home.toLowerCase().includes(q)) ||
+        (g.awayFullName && g.awayFullName.toLowerCase().includes(q)) ||
+        (g.homeFullName && g.homeFullName.toLowerCase().includes(q)) ||
         (g.awayConf && g.awayConf.toLowerCase().includes(q)) ||
         (g.homeConf && g.homeConf.toLowerCase().includes(q))
       )
@@ -531,7 +535,7 @@ function renderGameList(games, week){
       <div class="game-body">
         <div class="team-block away">
           ${teamLogoImg(g.awayLogo, g.away)}
-          <div class="team-name">${g.away}</div>
+          <div class="team-name">${g.awayFullName}</div>
           <div class="team-conf">${g.awayConf || ''}</div>
           <div class="team-winpct">${(g.awayWinPct*100).toFixed(1)}%</div>
           <div class="team-record">${g.awayRecord || ''}</div>
@@ -542,7 +546,7 @@ function renderGameList(games, week){
         </div>
         <div class="team-block home">
           ${teamLogoImg(g.homeLogo, g.home)}
-          <div class="team-name">${g.home}</div>
+          <div class="team-name">${g.homeFullName}</div>
           <div class="team-conf">${g.homeConf || ''}</div>
           <div class="team-winpct">${(g.homeWinPct*100).toFixed(1)}%</div>
           <div class="team-record">${g.homeRecord || ''}</div>
