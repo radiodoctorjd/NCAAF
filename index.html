@@ -206,6 +206,20 @@
     font-weight:bold;
     margin-bottom:2px;
   }
+  .team-abbr{
+    font-family: Arial, sans-serif;
+    font-size: 0.68rem;
+    font-weight:700;
+    color: var(--pigskin);
+    background: var(--pigskin-lace);
+    border: 1px solid var(--pigskin);
+    border-radius: 8px;
+    padding: 1px 7px;
+    display: inline-block;
+    margin-left: 6px;
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+  }
   .team-conf{
     font-family: Arial, sans-serif;
     font-size: 0.7rem;
@@ -330,6 +344,11 @@
   <div class="market-tab active" data-market="fg">Full Game</div>
   <div class="market-tab" data-market="1h">1st Half</div>
 </div>
+<div class="market-tabs" id="classificationTabs">
+  <div class="market-tab active" data-classification="all">Both</div>
+  <div class="market-tab" data-classification="FBS">FBS Only</div>
+  <div class="market-tab" data-classification="FCS">FCS Games</div>
+</div>
 
 <main id="main">
   <div class="status-msg">Loading matchups…</div>
@@ -381,6 +400,7 @@ function parseCSV(text){
 }
 
 let currentMarket = 'fg';
+let currentClassification = 'all'; // 'all' | 'FBS' | 'FCS'
 let allGames = [];
 let weeks = [];
 
@@ -424,6 +444,9 @@ async function loadData(){
       homeLogo: r[idx("Home Logo URL")],
       awayFullName: r[idx("Away Full Name")] || r[idx("Away")],
       homeFullName: r[idx("Home Full Name")] || r[idx("Home")],
+      awayAbbr: r[idx("Away Abbr")],
+      homeAbbr: r[idx("Home Abbr")],
+      gameType: r[idx("Game Type")] || "FBS",
     }));
 
     // Explicit non-empty check rather than .filter(Boolean) — Boolean("0")
@@ -474,11 +497,13 @@ function setupSearch(){
     }
 
     const matches = allGames.filter(g =>
-      g.week === week && (
+      g.week === week && matchesClassification(g) && (
         (g.away && g.away.toLowerCase().includes(q)) ||
         (g.home && g.home.toLowerCase().includes(q)) ||
         (g.awayFullName && g.awayFullName.toLowerCase().includes(q)) ||
         (g.homeFullName && g.homeFullName.toLowerCase().includes(q)) ||
+        (g.awayAbbr && g.awayAbbr.toLowerCase().includes(q)) ||
+        (g.homeAbbr && g.homeAbbr.toLowerCase().includes(q)) ||
         (g.awayConf && g.awayConf.toLowerCase().includes(q)) ||
         (g.homeConf && g.homeConf.toLowerCase().includes(q))
       )
@@ -512,8 +537,13 @@ function confidenceClass(c){
   return 'conf-tossup';
 }
 
+function matchesClassification(g){
+  if (currentClassification === 'all') return true;
+  return g.gameType === currentClassification;
+}
+
 function renderGames(week){
-  const games = allGames.filter(g => g.week === week);
+  const games = allGames.filter(g => g.week === week && matchesClassification(g));
   renderGameList(games, week);
 }
 
@@ -539,7 +569,7 @@ function renderGameList(games, week){
       <div class="game-body">
         <div class="team-block away">
           ${teamLogoImg(g.awayLogo, g.away)}
-          <div class="team-name">${g.awayFullName}</div>
+          <div class="team-name">${g.awayFullName}<span class="team-abbr">${g.awayAbbr || abbrev(g.away)}</span></div>
           <div class="team-conf">${g.awayConf || ''}</div>
           <div class="team-winpct">${(g.awayWinPct*100).toFixed(1)}%</div>
           <div class="team-record">${g.awayRecord || ''}</div>
@@ -550,7 +580,7 @@ function renderGameList(games, week){
         </div>
         <div class="team-block home">
           ${teamLogoImg(g.homeLogo, g.home)}
-          <div class="team-name">${g.homeFullName}</div>
+          <div class="team-name">${g.homeFullName}<span class="team-abbr">${g.homeAbbr || abbrev(g.home)}</span></div>
           <div class="team-conf">${g.homeConf || ''}</div>
           <div class="team-winpct">${(g.homeWinPct*100).toFixed(1)}%</div>
           <div class="team-record">${g.homeRecord || ''}</div>
@@ -617,15 +647,32 @@ function toggleDetail(i){
   document.getElementById(`detail-${i}`).classList.toggle('open');
 }
 
-document.querySelectorAll('.market-tab').forEach(tab => {
+document.querySelectorAll('#marketTabs .market-tab').forEach(tab => {
   tab.addEventListener('click', () => {
-    document.querySelectorAll('.market-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('#marketTabs .market-tab').forEach(t=>t.classList.remove('active'));
     tab.classList.add('active');
     currentMarket = tab.dataset.market;
     document.querySelectorAll('.market-panel').forEach(panel => {
       const idx = panel.dataset.idx;
       panel.innerHTML = renderMarket(currentRenderedGames[idx], currentMarket);
     });
+  });
+});
+
+document.querySelectorAll('#classificationTabs .market-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('#classificationTabs .market-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    currentClassification = tab.dataset.classification;
+    // Re-run whatever's currently driving the view — an active search
+    // takes precedence, otherwise fall back to the active week tab.
+    const searchInput = document.getElementById('teamSearch');
+    if (searchInput.value.trim()) {
+      searchInput.dispatchEvent(new Event('input'));
+    } else {
+      const activeWeekTab = document.querySelector('.week-tab.active');
+      renderGames(activeWeekTab ? activeWeekTab.dataset.week : weeks[0]);
+    }
   });
 });
 
