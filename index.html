@@ -608,16 +608,16 @@ function renderMarket(g, market){
       <div class="market-grid">
         <div class="market-item"><div class="label">Spread (Home)</div><div class="value">${fmtSpread(g.spreadHome)}</div></div>
         <div class="market-item"><div class="label">Game Total</div><div class="value">${g.total}</div></div>
-        <div class="market-item"><div class="label">${abbrev(g.away)} Team Total</div><div class="value">${g.awayTeamTotal}</div></div>
-        <div class="market-item"><div class="label">${abbrev(g.home)} Team Total</div><div class="value">${g.homeTeamTotal}</div></div>
+        <div class="market-item"><div class="label">${g.awayAbbr || abbrev(g.away)} Team Total</div><div class="value">${g.awayTeamTotal}</div></div>
+        <div class="market-item"><div class="label">${g.homeAbbr || abbrev(g.home)} Team Total</div><div class="value">${g.homeTeamTotal}</div></div>
       </div>`;
   } else {
     return `
       <div class="market-grid">
         <div class="market-item"><div class="label">1H Spread (Home)</div><div class="value">${fmtSpread(g.spread1H)}</div></div>
         <div class="market-item"><div class="label">1H Total</div><div class="value">${g.total1H}</div></div>
-        <div class="market-item"><div class="label">1H ${abbrev(g.away)} Total</div><div class="value">${g.awayTeamTotal1H}</div></div>
-        <div class="market-item"><div class="label">1H ${abbrev(g.home)} Total</div><div class="value">${g.homeTeamTotal1H}</div></div>
+        <div class="market-item"><div class="label">1H ${g.awayAbbr || abbrev(g.away)} Total</div><div class="value">${g.awayTeamTotal1H}</div></div>
+        <div class="market-item"><div class="label">1H ${g.homeAbbr || abbrev(g.home)} Total</div><div class="value">${g.homeTeamTotal1H}</div></div>
       </div>`;
   }
 }
